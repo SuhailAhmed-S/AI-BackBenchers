@@ -1,0 +1,165 @@
+Sure! Below is a full Python model code for the AI Gym Coach based on your abstract. It includes:
+
+Pose estimation (MediaPipe)
+
+Exercise detection (squats & push-ups as examples)
+
+Repetition counting
+
+Basic posture correction feedback
+
+Voice feedback option (optional)
+
+1. Install Required Libraries
+bash
+Copy
+Edit
+pip install mediapipe opencv-python pyttsx3
+2. Full Model Code
+python
+Copy
+Edit
+import cv2
+import mediapipe as mp
+import numpy as np
+import pyttsx3
+
+# Text-to-Speech for feedback
+engine = pyttsx3.init()
+def speak(text):
+    engine.say(text)
+    engine.runAndWait()
+
+# MediaPipe pose initialization
+mp_drawing = mp.solutions.drawing_utils
+mp_pose = mp.solutions.pose
+
+# Calculate angle between 3 points
+def calculate_angle(a, b, c):
+    a = np.array(a)  # First point
+    b = np.array(b)  # Middle point
+    c = np.array(c)  # End point
+
+    radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+    angle = np.abs(radians * 180.0 / np.pi)
+    if angle > 180.0:
+        angle = 360 - angle
+    return angle
+
+# Exercise detection variables
+counter = 0
+stage = None
+exercise_type = "squat"  # Change to "pushup" if needed
+
+# Webcam feed
+cap = cv2.VideoCapture(0)
+
+with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    while cap.isOpened():
+        ret, frame = cap.read()
+
+        # Recolor image to RGB
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+
+        # Make detection
+        results = pose.process(image)
+
+        # Recolor back to BGR for rendering
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        try:
+            landmarks = results.pose_landmarks.landmark
+
+            if exercise_type == "squat":
+                # Get coordinates for squat (hip, knee, ankle)
+                hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,
+                       landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+                knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,
+                        landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+                ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x,
+                         landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+
+                # Calculate angle
+                angle = calculate_angle(hip, knee, ankle)
+
+                # Rep counting logic
+                if angle > 160:
+                    stage = "up"
+                if angle < 90 and stage == "up":
+                    stage = "down"
+                    counter += 1
+                    speak(f"Good! Count: {counter}")
+
+                # Posture correction feedback
+                if angle < 70:
+                    cv2.putText(image, "Go lower!", (50, 100),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                if angle > 170:
+                    cv2.putText(image, "Keep knees soft!", (50, 140),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+
+            elif exercise_type == "pushup":
+                # Get coordinates for push-up (shoulder, elbow, wrist)
+                shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
+                            landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
+                elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x,
+                         landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
+                wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,
+                         landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
+
+                # Calculate angle
+                angle = calculate_angle(shoulder, elbow, wrist)
+
+                # Rep counting logic
+                if angle > 160:
+                    stage = "up"
+                if angle < 90 and stage == "up":
+                    stage = "down"
+                    counter += 1
+                    speak(f"Good! Count: {counter}")
+
+        except:
+            pass
+
+        # Render counter
+        cv2.rectangle(image, (0, 0), (225, 73), (245, 117, 16), -1)
+        cv2.putText(image, 'REPS', (15, 12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        cv2.putText(image, str(counter),
+                    (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
+
+        # Render detections
+        mp_drawing.draw_landmarks(
+            image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+            mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
+            mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+        )
+
+        cv2.imshow('AI Gym Coach', image)
+
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
+
+cap.release()
+cv2.destroyAllWindows()
+3. How it Works
+Opens webcam and uses MediaPipe Pose for detecting key landmarks.
+
+Squat or Push-up exercise detection based on angles at joints.
+
+Counts repetitions & gives voice feedback via pyttsx3.
+
+Shows real-time posture corrections on screen (e.g., "Go lower!").
+
+4. Next Steps (Advanced)
+Add more exercises (biceps curl, lunges, deadlifts) by creating angle logic for joints.
+
+Connect to a Flask/FastAPI backend to save workout data in a database.
+
+Build a mobile UI (React Native / Flutter) for visualization.
+
+Add progress analytics dashboard with Matplotlib or Plotly.
+

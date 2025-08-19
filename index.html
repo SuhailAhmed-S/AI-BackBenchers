@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Gym Coach Dashboard</title>
+</head>
+<body>
+  <h1>Welcome to AI Gym Coach</h1>
+  <div id="progress"></div>
+
+  <script>
+    fetch("http://127.0.0.1:5000/progress/john")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("progress").innerHTML = JSON.stringify(data);
+      });
+  </script>
+</body>
+</html>
